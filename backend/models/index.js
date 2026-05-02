@@ -16,8 +16,14 @@ const Sale           = require('./Sale');
 Supplier.hasMany(RawEntry, { foreignKey: 'supplier_id', as: 'rawEntries' });
 RawEntry.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
 
+Supplier.hasMany(Batch, { foreignKey: 'supplier_id', as: 'batches' });
+Batch.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier' });
+
 Batch.hasMany(WorkerLog, { foreignKey: 'batch_id', as: 'workerLogs' });
 WorkerLog.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
+
+Batch.hasMany(WorkerDailyLog, { foreignKey: 'batch_id', as: 'dailyLogs' });
+WorkerDailyLog.belongsTo(Batch, { foreignKey: 'batch_id', as: 'batch' });
 
 Worker.hasMany(WorkerLog, { foreignKey: 'worker_id', as: 'logs' });
 WorkerLog.belongsTo(Worker, { foreignKey: 'worker_id', as: 'worker' });

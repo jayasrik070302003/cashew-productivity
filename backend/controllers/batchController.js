@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
 // Batch Controller
 // ─────────────────────────────────────────────
-const { Batch, WorkerLog, Worker } = require('../models');
+const { Batch, WorkerLog, Worker, Supplier } = require('../models');
 const { Op } = require('sequelize');
 
 /** POST /api/batches */
@@ -25,10 +25,13 @@ exports.getAll = async (req, res, next) => {
     }
     const batches = await Batch.findAll({
       where,
-      include: [{
-        model: WorkerLog, as: 'workerLogs',
-        include: [{ model: Worker, as: 'worker', attributes: ['id', 'name', 'role'] }],
-      }],
+      include: [
+        { model: Supplier, as: 'supplier', attributes: ['id', 'name'] },
+        {
+          model: WorkerLog, as: 'workerLogs',
+          include: [{ model: Worker, as: 'worker', attributes: ['id', 'name', 'role'] }],
+        }
+      ],
       order: [['start_date', 'DESC']],
     });
     res.json({ success: true, data: batches });

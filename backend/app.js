@@ -63,6 +63,7 @@ const startServer = async () => {
     // Sync all models → creates tables if they don't exist
     await sequelize.authenticate();
     console.log('✅ Database connected successfully.');
+    
     await sequelize.sync({ alter: true });
     console.log('✅ Models synced to database.');
 

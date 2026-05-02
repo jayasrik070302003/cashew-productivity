@@ -4,6 +4,11 @@ const sequelize = require('../config/db');
 const Batch = sequelize.define('Batch', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   batch_code: { type: DataTypes.STRING(50), allowNull: true, comment: 'e.g. BATCH-2024-001' },
+  supplier_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'suppliers', key: 'id' },
+  },
   start_date: { type: DataTypes.DATEONLY, allowNull: false },
   end_date: { type: DataTypes.DATEONLY, allowNull: true },
   raw_quantity_used: { type: DataTypes.FLOAT, allowNull: false, comment: 'kg of raw cashew used' },

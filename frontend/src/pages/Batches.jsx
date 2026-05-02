@@ -1,54 +1,62 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { MdFactory, MdClose } from 'react-icons/md';
+import { MdFactory, MdClose, MdLocalShipping } from 'react-icons/md';
 import api from '../utils/api';
 
 const Batches = () => {
   const [batches, setBatches]     = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
   
-  const [addForm, setAddForm] = useState({ batch_code: '', start_date: '', raw_quantity_used: '', notes: '' });
+  const [addForm, setAddForm] = useState({ batch_code: '', supplier_id: '', start_date: '', end_date: '', raw_quantity_used: '', notes: '' });
   const [updateForm, setUpdateForm] = useState({ end_date: '', output_quantity: '', notes: '' });
   
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchBatches = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/batches');
-      setBatches(res.data.data);
-    } catch { toast.error('Failed to load batches'); }
+      const [bRes, sRes] = await Promise.all([api.get('/batches'), api.get('/suppliers')]);
+      setBatches(bRes.data.data);
+      setSuppliers(sRes.data.data);
+    } catch { toast.error('Failed to load data'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchBatches(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleAddSubmit = async (ev) => {
     ev.preventDefault();
-    if (!addForm.start_date || !addForm.raw_quantity_used) {
-      setErrors({ start_date: !addForm.start_date ? 'Required' : '', raw_quantity_used: !addForm.raw_quantity_used ? 'Required' : '' });
+    if (!addForm.start_date || !addForm.raw_quantity_used || !addForm.supplier_id) {
+      toast.error('Please fill required fields (Supplier, Start Date, Quantity)');
       return;
     }
     setSubmitting(true);
     try {
-      await api.post('/batches', addForm);
-      toast.success('Batch started!');
-      setAddForm({ batch_code: '', start_date: '', raw_quantity_used: '', notes: '' });
+      if (selectedBatch) {
+        await api.put(`/batches/${selectedBatch.id}`, addForm);
+        toast.success('Batch updated!');
+      } else {
+        await api.post('/batches', addForm);
+        toast.success('Batch started!');
+      }
+      setAddForm({ batch_code: '', supplier_id: '', start_date: '', end_date: '', raw_quantity_used: '', notes: '' });
+      setSelectedBatch(null);
       setShowAddModal(false);
-      fetchBatches();
+      fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to start batch');
+      toast.error(err.response?.data?.message || 'Failed to save batch');
     } finally { setSubmitting(false); }
   };
 
   const handleUpdateSubmit = async (ev) => {
     ev.preventDefault();
     if (!updateForm.end_date || !updateForm.output_quantity) {
-      setErrors({ end_date: !updateForm.end_date ? 'Required' : '', output_quantity: !updateForm.output_quantity ? 'Required' : '' });
+      toast.error('End date and output quantity are required');
       return;
     }
     setSubmitting(true);
@@ -56,7 +64,7 @@ const Batches = () => {
       await api.put(`/batches/${selectedBatch.id}`, updateForm);
       toast.success('Batch completed!');
       setShowUpdateModal(false);
-      fetchBatches();
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update batch');
     } finally { setSubmitting(false); }
@@ -93,12 +101,12 @@ const Batches = () => {
                 <thead>
                   <tr>
                     <th>Batch Code</th>
+                    <th>Supplier</th>
                     <th>Start Date</th>
                     <th>Status</th>
                     <th>Input (kg)</th>
                     <th>Output (kg)</th>
                     <th>Efficiency</th>
-                    <th>Waste (kg)</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -106,6 +114,12 @@ const Batches = () => {
                   {batches.map(b => (
                     <tr key={b.id}>
                       <td style={{ fontWeight: 600 }}>{b.batch_code || `BATCH-${b.id}`}</td>
+                      <td>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <MdLocalShipping size={14} color="var(--green-600)" />
+                          {b.supplier?.name || '—'}
+                        </span>
+                      </td>
                       <td>{b.start_date}</td>
                       <td>
                         <span className={`badge ${b.status === 'completed' ? 'badge-green' : 'badge-orange'}`}>
@@ -117,11 +131,24 @@ const Batches = () => {
                       <td style={{ fontWeight: 600, color: b.efficiency < 60 ? 'var(--danger)' : 'var(--green-700)' }}>
                          {b.efficiency ? `${b.efficiency}%` : '—'}
                       </td>
-                      <td>{b.waste || '—'}</td>
                       <td>
-                        {b.status !== 'completed' && (
-                          <button className="btn btn-outline btn-sm" onClick={() => openUpdateModal(b)}>Complete</button>
-                        )}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className="btn btn-outline btn-sm" onClick={() => {
+                            setSelectedBatch(b);
+                            setAddForm({ 
+                              batch_code: b.batch_code, 
+                              supplier_id: b.supplier_id, 
+                              start_date: b.start_date, 
+                              end_date: b.end_date,
+                              raw_quantity_used: b.raw_quantity_used, 
+                              notes: b.notes 
+                            });
+                            setShowAddModal(true);
+                          }}>Edit</button>
+                          {b.status !== 'completed' && (
+                            <button className="btn btn-success btn-sm" onClick={() => openUpdateModal(b)}>Complete</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -134,14 +161,22 @@ const Batches = () => {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowAddModal(false); setSelectedBatch(null); }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Start New Batch</h3>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}><MdClose /></button>
+              <h3>{selectedBatch ? 'Edit Batch Details' : 'Start New Batch'}</h3>
+              <button className="modal-close" onClick={() => { setShowAddModal(false); setSelectedBatch(null); }}><MdClose /></button>
             </div>
             <form onSubmit={handleAddSubmit}>
               <div className="modal-body">
+                <div className="form-group">
+                  <label>Supplier *</label>
+                  <select className="form-control" value={addForm.supplier_id} 
+                    onChange={e => setAddForm({...addForm, supplier_id: e.target.value})} required>
+                    <option value="">Select Supplier...</option>
+                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
                 <div className="form-group">
                   <label>Batch Code (Optional)</label>
                   <input className="form-control" value={addForm.batch_code} 
@@ -151,12 +186,19 @@ const Batches = () => {
                   <div className="form-group">
                     <label>Start Date *</label>
                     <input type="date" className="form-control" value={addForm.start_date}
-                      onChange={e => setAddForm({...addForm, start_date: e.target.value})} />
+                      onChange={e => setAddForm({...addForm, start_date: e.target.value})} required />
                   </div>
+                  {selectedBatch && (
+                    <div className="form-group">
+                      <label>End Date (Optional)</label>
+                      <input type="date" className="form-control" value={addForm.end_date || ''}
+                        onChange={e => setAddForm({...addForm, end_date: e.target.value})} />
+                    </div>
+                  )}
                   <div className="form-group">
                     <label>Raw Quantity Used (kg) *</label>
-                    <input type="number" className="form-control" value={addForm.raw_quantity_used}
-                      onChange={e => setAddForm({...addForm, raw_quantity_used: e.target.value})} />
+                    <input type="number" step="0.01" className="form-control" value={addForm.raw_quantity_used}
+                      onChange={e => setAddForm({...addForm, raw_quantity_used: e.target.value})} required />
                   </div>
                 </div>
                 <div className="form-group">
@@ -188,12 +230,12 @@ const Batches = () => {
                   <div className="form-group">
                     <label>End Date *</label>
                     <input type="date" className="form-control" value={updateForm.end_date}
-                      onChange={e => setUpdateForm({...updateForm, end_date: e.target.value})} />
+                      onChange={e => setUpdateForm({...updateForm, end_date: e.target.value})} required />
                   </div>
                   <div className="form-group">
                     <label>Output Quantity (kg) *</label>
-                    <input type="number" className="form-control" value={updateForm.output_quantity}
-                      onChange={e => setUpdateForm({...updateForm, output_quantity: e.target.value})} />
+                    <input type="number" step="0.01" className="form-control" value={updateForm.output_quantity}
+                      onChange={e => setUpdateForm({...updateForm, output_quantity: e.target.value})} required />
                   </div>
                 </div>
                 {updateForm.output_quantity && selectedBatch && (

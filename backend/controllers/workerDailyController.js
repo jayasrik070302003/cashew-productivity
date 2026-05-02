@@ -1,106 +1,88 @@
-const { WorkerDailyLog, Worker } = require('../models');
+const { WorkerDailyLog, Worker, Batch } = require('../models');
 const { Op } = require('sequelize');
 
-exports.getMonthlyData = async (req, res, next) => {
+/** Upsert daily log: POST /api/worker-daily */
+exports.upsert = async (req, res, next) => {
   try {
-    const { month, year, supplier_id } = req.query;
-    if (!month || !year) {
-      return res.status(400).json({ success: false, message: 'Month and year are required' });
+    const { worker_id, batch_id, date, quantity_processed } = req.body;
+    
+    if (!worker_id || !batch_id || !date) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
 
-    const startDate = `${year}-${month.padStart(2, '0')}-01`;
+    const [log, created] = await WorkerDailyLog.findOrCreate({
+      where: { worker_id, batch_id, date },
+      defaults: { quantity_processed: quantity_processed || 0 }
+    });
+
+    if (!created) {
+      await log.update({ quantity_processed: quantity_processed || 0 });
+    }
+
+    res.json({ success: true, data: log });
+  } catch (err) { next(err); }
+};
+
+/** Get monthly data: GET /api/worker-daily/monthly?batch_id=...&month=...&year=... */
+exports.getMonthlyData = async (req, res, next) => {
+  try {
+    const { batch_id, month, year } = req.query;
+    if (!batch_id || !month || !year) {
+      return res.status(400).json({ success: false, message: 'Batch ID, month and year are required' });
+    }
+
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
 
-    const where = {
-      date: { [Op.between]: [startDate, endDate] }
-    };
+    const logs = await WorkerDailyLog.findAll({
+      where: {
+        batch_id,
+        date: { [Op.between]: [startDate, endDate] }
+      }
+    });
 
-    if (supplier_id) {
-      where.supplier_id = supplier_id;
+    res.json({ success: true, data: logs });
+  } catch (err) { next(err); }
+};
+
+/** Get Filtered Report: GET /api/worker-daily/report?batch_id=...&from_date=...&to_date=... */
+exports.getFilteredReport = async (req, res, next) => {
+  try {
+    const { batch_id, from_date, to_date } = req.query;
+    if (!batch_id) return res.status(400).json({ success: false, message: 'Batch ID is required' });
+
+    const where = { batch_id };
+    if (from_date && to_date) {
+      where.date = { [Op.between]: [from_date, to_date] };
     }
 
     const logs = await WorkerDailyLog.findAll({
       where,
-      include: [{ model: Worker, as: 'worker', attributes: ['id', 'name'] }]
+      include: [{ model: Worker, as: 'worker' }]
     });
 
-    res.json({ success: true, data: logs });
-  } catch (err) {
-    next(err);
-  }
-};
+    // Aggregation
+    let totalQty = 0;
+    const workerStats = {};
 
-exports.upsertDailyLog = async (req, res, next) => {
-  try {
-    const { worker_id, supplier_id, date, quantity_processed } = req.body;
-
-    if (!worker_id || !supplier_id || !date || quantity_processed === undefined) {
-      return res.status(400).json({ success: false, message: 'Missing required fields' });
-    }
-
-    if (quantity_processed < 0) {
-      return res.status(400).json({ success: false, message: 'Quantity cannot be negative' });
-    }
-
-    // Upsert needs the unique fields to find existing record.
-    // Since we updated the unique index in the model, Sequelize will use (worker_id, date, supplier_id)
-    const [log, created] = await WorkerDailyLog.upsert({
-      worker_id,
-      supplier_id,
-      date,
-      quantity_processed
+    logs.forEach(l => {
+      const qty = parseFloat(l.quantity_processed) || 0;
+      totalQty += qty;
+      
+      const wName = l.worker?.name || 'Unknown';
+      if (!workerStats[wName]) workerStats[wName] = 0;
+      workerStats[wName] += qty;
     });
 
-    res.json({
-      success: true,
-      message: created ? 'Log created' : 'Log updated',
-      data: log
-    });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/** GET /api/worker-daily/report?supplier_id=...&from_date=...&to_date=... */
-exports.getReportData = async (req, res, next) => {
-  try {
-    const { supplier_id, from_date, to_date } = req.query;
-
-    if (!supplier_id || !from_date || !to_date) {
-      return res.status(400).json({ success: false, message: 'supplier_id, from_date, and to_date are required' });
-    }
-
-    const logs = await WorkerDailyLog.findAll({
-      where: {
-        supplier_id,
-        date: { [Op.between]: [from_date, to_date] }
-      },
-      include: [{ model: Worker, as: 'worker', attributes: ['name'] }]
-    });
-
-    // Calculate totals
-    const total_quantity = logs.reduce((sum, log) => sum + log.quantity_processed, 0);
-
-    // Worker breakdown
-    const breakdownMap = {};
-    logs.forEach(log => {
-      const name = log.worker?.name || 'Unknown';
-      breakdownMap[name] = (breakdownMap[name] || 0) + log.quantity_processed;
-    });
-
-    const worker_breakdown = Object.entries(breakdownMap).map(([worker_name, total]) => ({
-      worker_name,
-      total: parseFloat(total.toFixed(2))
+    const worker_breakdown = Object.entries(workerStats).map(([name, total]) => ({
+      worker_name: name,
+      total: total.toFixed(1)
     }));
 
     res.json({
       success: true,
-      data: {
-        total_quantity: parseFloat(total_quantity.toFixed(2)),
-        worker_breakdown
-      }
+      total_quantity: totalQty.toFixed(1),
+      worker_breakdown
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };

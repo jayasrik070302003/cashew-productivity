@@ -8,10 +8,10 @@ const WorkerDailyLog = sequelize.define('WorkerDailyLog', {
     allowNull: false,
     references: { model: 'workers', key: 'id' },
   },
-  supplier_id: {
+  batch_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { model: 'suppliers', key: 'id' },
+    references: { model: 'batches', key: 'id' },
   },
   date: { type: DataTypes.DATEONLY, allowNull: false },
   quantity_processed: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
@@ -21,7 +21,7 @@ const WorkerDailyLog = sequelize.define('WorkerDailyLog', {
   indexes: [
     {
       unique: true,
-      fields: ['worker_id', 'date', 'supplier_id']
+      fields: ['worker_id', 'date', 'batch_id']
     }
   ]
 });
