@@ -1,0 +1,25 @@
+{
+  "name": "cashew-backend",
+  "version": "1.0.0",
+  "description": "Cashew Processing Management System - Backend API",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "seed": "node utils/seed.js"
+  },
+  "keywords": ["cashew", "factory", "management", "nodejs", "express"],
+  "author": "Appa Company",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.2",
+    "express-validator": "^7.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.9.4",
+    "nodemon": "^3.1.0",
+    "sequelize": "^6.37.3"
+  }
+}
