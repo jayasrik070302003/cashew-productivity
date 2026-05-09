@@ -11,6 +11,7 @@ const User = sequelize.define('User', {
 }, {
   tableName: 'users',
   timestamps: true,
+  paranoid: true,
   hooks: {
     // Hash password before saving
     beforeCreate: async (user) => {

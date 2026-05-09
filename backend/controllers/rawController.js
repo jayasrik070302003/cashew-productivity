@@ -31,8 +31,8 @@ exports.create = async (req, res, next) => {
     const supplier = await Supplier.findByPk(supplier_id);
     const prefix = (supplier.name || 'SUP').split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3);
     
-    // Count existing batches for this supplier to get the suffix
-    const batchCount = await Batch.count({ where: { supplier_id } });
+    // Global batch count for sequential ID numbering
+    const batchCount = await Batch.count({ paranoid: false });
     const suffix = String(batchCount + 1).padStart(3, '0');
     const batch_code = `${prefix}-${suffix}`;
 

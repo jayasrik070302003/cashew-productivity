@@ -19,6 +19,7 @@ const Worker = sequelize.define('Worker', {
 }, {
   tableName: 'workers',
   timestamps: true,
+  paranoid: true,
 });
 
 module.exports = Worker;

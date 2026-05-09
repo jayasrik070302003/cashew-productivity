@@ -18,6 +18,7 @@ const WorkerDailyLog = sequelize.define('WorkerDailyLog', {
 }, {
   tableName: 'worker_daily_logs',
   timestamps: true,
+  paranoid: true,
   indexes: [
     {
       unique: true,

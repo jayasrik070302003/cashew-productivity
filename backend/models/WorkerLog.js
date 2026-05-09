@@ -30,6 +30,7 @@ const WorkerLog = sequelize.define('WorkerLog', {
 }, {
   tableName: 'worker_logs',
   timestamps: true,
+  paranoid: true,
 });
 
 module.exports = WorkerLog;

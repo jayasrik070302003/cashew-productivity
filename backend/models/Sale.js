@@ -13,6 +13,7 @@ const Sale = sequelize.define('Sale', {
 }, {
   tableName: 'sales',
   timestamps: true,
+  paranoid: true,
   hooks: {
     beforeCreate: (sale) => {
       sale.total_revenue = parseFloat((sale.quantity_sold * sale.price_per_kg).toFixed(2));

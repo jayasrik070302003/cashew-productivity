@@ -17,6 +17,7 @@ const RawEntry = sequelize.define('RawEntry', {
 }, {
   tableName: 'raw_entries',
   timestamps: true,
+  paranoid: true,
   hooks: {
     beforeCreate: (entry) => {
       entry.total_cost = parseFloat((entry.quantity * entry.cost_per_kg).toFixed(2));

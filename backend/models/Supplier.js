@@ -9,6 +9,7 @@ const Supplier = sequelize.define('Supplier', {
 }, {
   tableName: 'suppliers',
   timestamps: true,
+  paranoid: true,
 });
 
 module.exports = Supplier;

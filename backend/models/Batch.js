@@ -26,6 +26,7 @@ const Batch = sequelize.define('Batch', {
 }, {
   tableName: 'batches',
   timestamps: true,
+  paranoid: true,
   hooks: {
     beforeCreate: (batch) => {
       if (batch.output_quantity != null) {

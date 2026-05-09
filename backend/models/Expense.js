@@ -13,6 +13,7 @@ const Expense = sequelize.define('Expense', {
 }, {
   tableName: 'expenses',
   timestamps: true,
+  paranoid: true,
 });
 
 module.exports = Expense;

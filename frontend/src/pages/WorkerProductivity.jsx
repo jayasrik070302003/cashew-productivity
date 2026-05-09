@@ -33,6 +33,7 @@ const WorkerProductivity = () => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -210,15 +211,54 @@ const WorkerProductivity = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.5fr', gap: '20px', alignItems: 'flex-end' }}>
             <div className="filter-group">
               <label className="filter-label"><MdLayers /> Select Batch / Lot</label>
-              <select className="form-control" value={selectedBatchId} onChange={e => setSelectedBatchId(e.target.value)} style={{ height: 42 }}>
-                <option value="">-- Select Batch (Active/Closed) --</option>
-                {batches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.status === 'completed' ? '[Closed] ' : '[Active] '}
-                    {b.supplier?.name} - {b.batch_code || `Lot #${b.id}`} ({b.start_date})
-                  </option>
-                ))}
-              </select>
+              <div className="custom-select-container">
+                <div 
+                  className={`custom-select-trigger ${isDropdownOpen ? 'open' : ''}`} 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <span className="trigger-text">
+                    {selectedBatchId 
+                      ? (() => {
+                          const b = batches.find(b => b.id == selectedBatchId);
+                          if (!b) return '-- Select Batch --';
+                          return (
+                            <>
+                              <span className={`status-dot ${b.status === 'completed' ? 'closed' : 'active'}`}></span>
+                              <strong>{b.supplier?.name}</strong> - {b.batch_code || `Lot #${b.id}`}
+                            </>
+                          );
+                        })()
+                      : '-- Select Batch (Active/Closed) --'
+                    }
+                  </span>
+                  <span className="dropdown-arrow">▼</span>
+                </div>
+                
+                {isDropdownOpen && (
+                  <>
+                    <div className="dropdown-backdrop" onClick={() => setIsDropdownOpen(false)}></div>
+                    <div className="custom-select-options">
+                      <div 
+                        className={`custom-select-option ${selectedBatchId === '' ? 'selected' : ''}`}
+                        onClick={() => { setSelectedBatchId(''); setIsDropdownOpen(false); }}
+                      >
+                        -- Clear Selection --
+                      </div>
+                      {batches.map(b => (
+                        <div 
+                          key={b.id}
+                          className={`custom-select-option ${selectedBatchId == b.id ? 'selected' : ''}`}
+                          onClick={() => { setSelectedBatchId(b.id); setIsDropdownOpen(false); }}
+                        >
+                          <span className={`status-dot ${b.status === 'completed' ? 'closed' : 'active'}`}></span>
+                          <strong>{b.supplier?.name}</strong> <span className="batch-code">- {b.batch_code || `Lot #${b.id}`}</span>
+                          <span className="date-hint">{b.start_date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div className="filter-group">
               <label className="filter-label"><MdEvent /> Batch Timeline</label>
@@ -427,6 +467,45 @@ const WorkerProductivity = () => {
         
         .grand-qty { background: var(--green-900) !important; color: #fff; text-align: center; }
         .grand-salary { background: var(--green-900) !important; color: var(--green-400); text-align: right; padding: 0 10px !important; }
+
+        /* Custom Dropdown CSS */
+        .custom-select-container { position: relative; width: 100%; font-family: 'Inter', sans-serif; }
+        .custom-select-trigger {
+          display: flex; justify-content: space-between; align-items: center;
+          height: 42px; padding: 0 16px; background: #fff; border: 1px solid #d1d5db;
+          border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500;
+          color: #374151; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .custom-select-trigger:hover, .custom-select-trigger.open { 
+          border-color: var(--green-400); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1); 
+        }
+        .custom-select-trigger .trigger-text { display: flex; align-items: center; gap: 8px; }
+        .dropdown-arrow { font-size: 10px; color: #9ca3af; transition: transform 0.2s; }
+        .custom-select-trigger.open .dropdown-arrow { transform: rotate(180deg); }
+        
+        .dropdown-backdrop { position: fixed; inset: 0; z-index: 99; }
+        .custom-select-options {
+          position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+          background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+          box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+          z-index: 100; max-height: 320px; overflow-y: auto; padding: 6px;
+          animation: dropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes dropdownIn { from { opacity: 0; transform: translateY(-8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
+        .custom-select-option {
+          padding: 10px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+          font-size: 13px; color: #4b5563; transition: all 0.15s;
+        }
+        .custom-select-option:hover { background: #f9fafb; color: #111827; }
+        .custom-select-option.selected { background: #ecfdf5; color: #065f46; font-weight: 600; }
+        .custom-select-option .batch-code { color: #6b7280; font-weight: 400; }
+        
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .status-dot.active { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+        .status-dot.closed { background: #9ca3af; }
+        
+        .date-hint { margin-left: auto; color: #9ca3af; font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
       `}} />
     </div>
   );
