@@ -7,10 +7,9 @@ const { Op } = require('sequelize');
 /** POST /api/raw */
 exports.create = async (req, res, next) => {
   try {
-    const { quantity, cost_per_kg } = req.body;
+    const { quantity, cost_per_kg, supplier_id, date } = req.body;
+    const { Batch } = require('../models');
 
-    // Calculate total_cost here so it is present at Sequelize validation time.
-    // (beforeCreate hooks run AFTER allowNull validation, so we must set it explicitly.)
     const qty  = parseFloat(quantity);
     const cost = parseFloat(cost_per_kg);
 
@@ -19,9 +18,38 @@ exports.create = async (req, res, next) => {
 
     const total_cost = parseFloat((qty * cost).toFixed(2));
 
-    const entry = await RawEntry.create({ ...req.body, quantity: qty, cost_per_kg: cost, total_cost });
-    const full  = await RawEntry.findByPk(entry.id, { include: [{ model: Supplier, as: 'supplier' }] });
-    res.status(201).json({ success: true, data: full });
+    // 1. Create Raw Entry
+    const entry = await RawEntry.create({ 
+      ...req.body, 
+      quantity: qty, 
+      cost_per_kg: cost, 
+      total_cost 
+    });
+
+    // 2. Auto-generate Batch
+    // Get Supplier for prefix
+    const supplier = await Supplier.findByPk(supplier_id);
+    const prefix = (supplier.name || 'SUP').split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3);
+    
+    // Count existing batches for this supplier to get the suffix
+    const batchCount = await Batch.count({ where: { supplier_id } });
+    const suffix = String(batchCount + 1).padStart(3, '0');
+    const batch_code = `${prefix}-${suffix}`;
+
+    await Batch.create({
+      batch_code,
+      supplier_id,
+      raw_entry_id: entry.id,
+      input_quantity: qty,
+      start_date: date || new Date().toISOString().split('T')[0],
+      status: 'active'
+    });
+
+    const full = await RawEntry.findByPk(entry.id, { 
+      include: [{ model: Supplier, as: 'supplier' }] 
+    });
+    
+    res.status(201).json({ success: true, data: full, message: `Raw entry saved and Batch ${batch_code} created.` });
   } catch (err) { next(err); }
 };
 

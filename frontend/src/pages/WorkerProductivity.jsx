@@ -34,8 +34,6 @@ const WorkerProductivity = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBatchId, setSelectedBatchId] = useState('');
   
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -47,8 +45,6 @@ const WorkerProductivity = () => {
 
   const activeBatch = useMemo(() => batches.find(b => b.id == selectedBatchId), [selectedBatchId, batches]);
   const isClosed = activeBatch?.status === 'completed';
-
-  const daysInMonth = useMemo(() => new Date(selectedYear, selectedMonth, 0).getDate(), [selectedMonth, selectedYear]);
 
   // Fetch lists
   useEffect(() => {
@@ -69,15 +65,11 @@ const WorkerProductivity = () => {
     if (activeBatch) {
       setStartDate(activeBatch.start_date);
       setEndDate(activeBatch.end_date || '');
-      
-      const bDate = new Date(activeBatch.start_date);
-      setSelectedMonth(bDate.getMonth() + 1);
-      setSelectedYear(bDate.getFullYear());
 
-      // Fetch logs for this batch
+      // Fetch all logs for this batch
       const fetchLogs = async () => {
         try {
-          const res = await api.get(`/worker-daily?batch_id=${selectedBatchId}&month=${bDate.getMonth() + 1}&year=${bDate.getFullYear()}`);
+          const res = await api.get(`/worker-daily?batch_id=${selectedBatchId}`);
           setGridData(prev => {
             const merged = { ...prev };
             res.data.data.forEach(log => {
@@ -93,6 +85,40 @@ const WorkerProductivity = () => {
 
   useEffect(() => { lsSet(LS_KEY, gridData); }, [gridData]);
 
+  const activeDates = useMemo(() => {
+    if (!startDate) return [];
+    
+    let maxDateStr = startDate;
+    Object.keys(gridData).forEach(key => {
+      const { batchId: bId, date } = parseKey(key);
+      if (bId === String(selectedBatchId) && gridData[key] !== '') {
+        if (date > maxDateStr) maxDateStr = date;
+      }
+    });
+
+    const dates = [];
+    const parseISODate = (str) => {
+      const [y, m, d] = str.split('-');
+      return new Date(y, m - 1, d);
+    };
+    const formatISODate = (dateObj) => {
+      return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    };
+
+    let curr = parseISODate(startDate);
+    const end = parseISODate(maxDateStr);
+    
+    if (!isClosed) {
+      end.setDate(end.getDate() + 1);
+    }
+
+    while (curr <= end) {
+      dates.push(formatISODate(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
+    return dates;
+  }, [startDate, gridData, selectedBatchId, isClosed]);
+
   const fetchReport = async () => {
     if (!selectedBatchId) { toast.warn('Select a batch first'); return; }
     setFetchingReport(true);
@@ -103,12 +129,11 @@ const WorkerProductivity = () => {
     finally { setFetchingReport(false); }
   };
 
-  const handleInputChange = (workerId, day, value) => {
+  const handleInputChange = (workerId, date, value) => {
     if (isClosed) return; // Prevent edits if closed
     if (!selectedBatchId) { toast.warn('Select a batch first'); return; }
     if (value !== '' && (isNaN(value) || parseFloat(value) < 0)) return;
 
-    const date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const k = cellKey(workerId, selectedBatchId, date);
 
     setGridData(prev => ({ ...prev, [k]: value }));
@@ -118,10 +143,9 @@ const WorkerProductivity = () => {
   const handleSave = async () => {
     if (!isDirty || !selectedBatchId || isClosed) return;
     
-    const prefix = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
     const toSave = Object.entries(gridData).filter(([k]) => {
-      const { batchId, date } = parseKey(k);
-      return batchId === String(selectedBatchId) && date.startsWith(prefix);
+      const { batchId } = parseKey(k);
+      return batchId === String(selectedBatchId);
     });
 
     if (toSave.length === 0) { setIsDirty(false); return; }
@@ -143,11 +167,10 @@ const WorkerProductivity = () => {
   const stats = useMemo(() => {
     const workerStats = workers.map(w => {
       let total = 0;
-      for (let day = 1; day <= daysInMonth; day++) {
-        const date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      activeDates.forEach(date => {
         const val = gridData[cellKey(w.id, selectedBatchId, date)];
         if (val && !isNaN(val)) total += parseFloat(val);
-      }
+      });
       return { id: w.id, name: w.name, total, salary: total * 26 };
     });
 
@@ -159,7 +182,7 @@ const WorkerProductivity = () => {
       lowest: sorted.length > 1 && sorted[sorted.length - 1]?.total > 0 ? sorted[sorted.length - 1].id : null,
       totalQty: workerStats.reduce((s, w) => s + w.total, 0)
     };
-  }, [workers, gridData, daysInMonth, selectedMonth, selectedYear, selectedBatchId, startDate, endDate]);
+  }, [workers, gridData, activeDates, selectedBatchId]);
 
   return (
     <div className="productivity-page">
@@ -260,12 +283,10 @@ const WorkerProductivity = () => {
               <tr>
                 <th className="sticky-col-sno">S.NO</th>
                 <th className="sticky-col-name">WORKER NAME</th>
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const day = i + 1;
-                  const date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const validEndDate = (endDate && endDate !== '0000-00-00') ? endDate : null;
-                  const isInRange = (!startDate || date >= startDate) && (!validEndDate || date <= validEndDate);
-                  return <th key={day} className="date-th" style={!isInRange ? { opacity: 0.3 } : {}}>{day}</th>;
+                {activeDates.map((date) => {
+                  const dObj = new Date(date.split('-')[0], date.split('-')[1] - 1, date.split('-')[2]);
+                  const displayDate = dObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                  return <th key={date} className="date-th">{displayDate}</th>;
                 })}
                 <th className="stats-header">TOTAL (KG)</th>
                 <th className="stats-header">SALARY (₹)</th>
@@ -276,16 +297,12 @@ const WorkerProductivity = () => {
                 <tr key={w.id} className={w.id === stats.highest ? 'row-highest' : w.id === stats.lowest ? 'row-lowest' : ''}>
                   <td className="sticky-col-sno">{idx + 1}</td>
                   <td className="sticky-col-name">{w.name}</td>
-                  {Array.from({ length: daysInMonth }, (_, i) => {
-                    const day = i + 1;
-                    const date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                    const validEndDate = (endDate && endDate !== '0000-00-00') ? endDate : null;
-                    const isInRange = (!startDate || date >= startDate) && (!validEndDate || date <= validEndDate);
+                  {activeDates.map((date) => {
                     const val = gridData[cellKey(w.id, selectedBatchId, date)] ?? '';
                     return (
-                      <td key={day} className="input-cell">
-                        <input type="text" value={val} disabled={!isInRange || isClosed} placeholder={isInRange ? "0" : "—"}
-                          onChange={e => handleInputChange(w.id, day, e.target.value)} />
+                      <td key={date} className="input-cell">
+                        <input type="text" value={val} disabled={isClosed} placeholder={isClosed ? "—" : "0"}
+                          onChange={e => handleInputChange(w.id, date, e.target.value)} />
                       </td>
                     );
                   })}
@@ -297,15 +314,13 @@ const WorkerProductivity = () => {
             <tfoot>
               <tr className="factory-total-row">
                 <td colSpan={2} className="sticky-total-label">BATCH TOTAL</td>
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const day = i + 1;
-                  const date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                {activeDates.map(date => {
                   let dayTotal = 0;
                   workers.forEach(w => {
                      const val = gridData[cellKey(w.id, selectedBatchId, date)];
                      if (val && !isNaN(val)) dayTotal += parseFloat(val);
                   });
-                  return <td key={day} className="day-sum">{dayTotal > 0 ? dayTotal.toFixed(1) : '—'}</td>;
+                  return <td key={date} className="day-sum">{dayTotal > 0 ? dayTotal.toFixed(1) : '—'}</td>;
                 })}
                 <td className="grand-qty">{stats.totalQty.toFixed(1)}</td>
                 <td className="grand-salary">₹{workers.reduce((sum, w) => sum + (stats.byId[w.id]?.salary || 0), 0).toLocaleString()}</td>

@@ -23,23 +23,22 @@ exports.upsert = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-/** Get monthly data: GET /api/worker-daily/monthly?batch_id=...&month=...&year=... */
+/** Get batch data: GET /api/worker-daily?batch_id=... */
 exports.getMonthlyData = async (req, res, next) => {
   try {
     const { batch_id, month, year } = req.query;
-    if (!batch_id || !month || !year) {
-      return res.status(400).json({ success: false, message: 'Batch ID, month and year are required' });
+    if (!batch_id) {
+      return res.status(400).json({ success: false, message: 'Batch ID is required' });
     }
 
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    const where = { batch_id };
+    if (month && year) {
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+      where.date = { [Op.between]: [startDate, endDate] };
+    }
 
-    const logs = await WorkerDailyLog.findAll({
-      where: {
-        batch_id,
-        date: { [Op.between]: [startDate, endDate] }
-      }
-    });
+    const logs = await WorkerDailyLog.findAll({ where });
 
     res.json({ success: true, data: logs });
   } catch (err) { next(err); }

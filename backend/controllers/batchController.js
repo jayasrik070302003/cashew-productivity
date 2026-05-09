@@ -4,11 +4,10 @@
 const { Batch, WorkerLog, Worker, Supplier } = require('../models');
 const { Op } = require('sequelize');
 
-/** POST /api/batches */
+/** POST /api/batches - Manual creation disabled as per auto-workflow */
 exports.create = async (req, res, next) => {
   try {
-    const batch = await Batch.create(req.body);
-    res.status(201).json({ success: true, data: batch });
+    return res.status(403).json({ success: false, message: 'Manual batch creation is disabled. Batches are created automatically from Raw Entry.' });
   } catch (err) { next(err); }
 };
 
@@ -57,3 +56,4 @@ exports.remove = async (req, res, next) => {
     res.json({ success: true, message: 'Batch deleted' });
   } catch (err) { next(err); }
 };
+ 
