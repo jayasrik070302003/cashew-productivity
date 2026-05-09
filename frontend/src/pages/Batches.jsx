@@ -71,6 +71,7 @@ const Batches = () => {
               <table>
                 <thead>
                   <tr>
+                    <th>S.No</th>
                     <th>Batch Code</th>
                     <th>Supplier</th>
                     <th>Start Date</th>
@@ -82,8 +83,9 @@ const Batches = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {batches.map(b => (
+                  {batches.map((b, idx) => (
                     <tr key={b.id}>
+                      <td style={{ fontWeight: 600 }}>{idx + 1}</td>
                       <td style={{ fontWeight: 600 }}>{b.batch_code || `BATCH-${b.id}`}</td>
                       <td>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

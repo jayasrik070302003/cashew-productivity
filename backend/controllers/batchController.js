@@ -31,7 +31,7 @@ exports.getAll = async (req, res, next) => {
           include: [{ model: Worker, as: 'worker', attributes: ['id', 'name', 'role'] }],
         }
       ],
-      order: [['createdAt', 'DESC']],
+      order: [['createdAt', 'ASC']],
     });
     res.json({ success: true, data: batches });
   } catch (err) { next(err); }

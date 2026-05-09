@@ -13,7 +13,6 @@ const navItems = [
   { path: '/suppliers',    icon: <MdLocalShipping />, label: 'Suppliers',      section: 'OPERATIONS' },
   { path: '/batches',      icon: <MdFactory />, label: 'Batches',        section: 'OPERATIONS' },
   { path: '/workers',      icon: <MdEngineering />, label: 'Workers',        section: 'WORKFORCE' },
-  { path: '/worker-logs',  icon: <MdListAlt />, label: 'Worker Logs',    section: 'WORKFORCE' },
   { path: '/productivity', icon: <MdBarChart />, label: 'Daily Productivity', section: 'WORKFORCE' },
   { path: '/expenses',     icon: <MdMoneyOff />, label: 'Expenses',       section: 'FINANCE' },
   { path: '/sales',        icon: <MdAttachMoney />, label: 'Sales',          section: 'FINANCE' },

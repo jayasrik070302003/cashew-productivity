@@ -77,6 +77,7 @@ const Reports = () => {
   };
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
+  if (!data) return <div className="card p-10 text-center text-muted" style={{ margin: 40 }}><h3>Failed to load report data</h3><p>Please check your connection or try again later.</p></div>;
 
   return (
     <div>

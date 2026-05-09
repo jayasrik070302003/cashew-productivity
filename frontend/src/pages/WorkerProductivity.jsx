@@ -312,9 +312,12 @@ const WorkerProductivity = () => {
 
       {/* Grid */}
       {!selectedBatchId ? (
-        <div className="card p-10 text-center text-muted">
-           <MdLayers size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
-           <h3>Please select a Batch to view history or track productivity</h3>
+        <div className="empty-state-container">
+           <div className="empty-icon-wrapper">
+             <MdLayers size={42} />
+           </div>
+           <h3>No Batch Selected</h3>
+           <p>Please select a production batch from the dropdown above to view its timeline, track worker productivity, and manage daily data.</p>
         </div>
       ) : (
         <div className={`productivity-table-container ${isClosed ? 'read-only-grid' : ''}`}>
@@ -506,6 +509,23 @@ const WorkerProductivity = () => {
         .status-dot.closed { background: #9ca3af; }
         
         .date-hint { margin-left: auto; color: #9ca3af; font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+        /* Premium Empty State */
+        .empty-state-container {
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          padding: 80px 20px; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+          border: 2px dashed #cbd5e1; border-radius: 16px;
+          text-align: center; box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
+        }
+        .empty-icon-wrapper {
+          width: 80px; height: 80px; background: #fff; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          color: var(--green-500); box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.2);
+          margin-bottom: 24px; animation: floatIcon 3s ease-in-out infinite;
+        }
+        .empty-state-container h3 { font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+        .empty-state-container p { font-size: 14px; color: #64748b; max-width: 400px; line-height: 1.5; margin: 0; }
+        @keyframes floatIcon { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
       `}} />
     </div>
   );

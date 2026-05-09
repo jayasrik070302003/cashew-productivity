@@ -28,7 +28,7 @@ exports.summary = async (req, res, next) => {
       }),
       Expense.findAll({ where: dateFilter('date'), attributes: ['type', 'amount'] }),
       Sale.findAll({ where: dateFilter('date'), attributes: ['total_revenue', 'quantity_sold'] }),
-      Batch.findAll({ where: {}, attributes: ['raw_quantity_used', 'output_quantity', 'efficiency', 'waste', 'status'] }),
+      Batch.findAll({ where: {}, attributes: ['input_quantity', 'output_quantity', 'efficiency', 'waste', 'status'] }),
       Worker.findAll({ attributes: ['id', 'name'] }),
     ]);
 

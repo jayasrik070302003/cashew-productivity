@@ -14,7 +14,6 @@ import RawMaterials from './pages/RawMaterials';
 import Suppliers   from './pages/Suppliers';
 import Batches     from './pages/Batches';
 import Workers     from './pages/Workers';
-import WorkerLogs  from './pages/WorkerLogs';
 import Expenses    from './pages/Expenses';
 import Sales       from './pages/Sales';
 import Reports     from './pages/Reports';
@@ -54,7 +53,6 @@ const AppRoutes = () => {
       <Route path="/suppliers"   element={<ProtectedLayout><Suppliers /></ProtectedLayout>} />
       <Route path="/batches"     element={<ProtectedLayout><Batches /></ProtectedLayout>} />
       <Route path="/workers"     element={<ProtectedLayout><Workers /></ProtectedLayout>} />
-      <Route path="/worker-logs" element={<ProtectedLayout><WorkerLogs /></ProtectedLayout>} />
       <Route path="/productivity" element={<ProtectedLayout><WorkerProductivity /></ProtectedLayout>} />
       <Route path="/expenses"    element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
       <Route path="/sales"       element={<ProtectedLayout><Sales /></ProtectedLayout>} />
