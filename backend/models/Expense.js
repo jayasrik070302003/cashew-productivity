@@ -4,7 +4,7 @@ const sequelize = require('../config/db');
 const Expense = sequelize.define('Expense', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   type: {
-    type: DataTypes.ENUM('tea', 'electricity', 'transport', 'misc'),
+    type: DataTypes.ENUM('tea', 'electricity', 'transport', 'misc', 'machinery_repair', 'machine_maintenance', 'spare_parts', 'technician_service'),
     allowNull: false,
   },
   amount: { type: DataTypes.FLOAT, allowNull: false },

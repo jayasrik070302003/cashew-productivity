@@ -325,7 +325,7 @@ const Reports = () => {
                     <div style={{ height: '300px', display: 'flex', justifyContent: 'center' }}>
                       <Doughnut 
                         data={{
-                          labels: analytics.expense_breakdown.map(e => e.type),
+                          labels: analytics.expense_breakdown.map(e => e.type.replace(/_/g, ' ')),
                           datasets: [{
                             data: analytics.expense_breakdown.map(e => e.amount),
                             backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#8d6e63']

@@ -83,7 +83,7 @@ const Expenses = () => {
                       <tr key={e.id}>
                         <td>{e.date}</td>
                         <td>
-                          <span className={`badge badge-brown`} style={{textTransform: 'capitalize'}}>{e.type}</span>
+                          <span className={`badge badge-brown`} style={{textTransform: 'capitalize'}}>{e.type.replace(/_/g, ' ')}</span>
                         </td>
                         <td style={{ fontWeight: 700 }}>₹{e.amount}</td>
                         <td style={{ color: 'var(--text-muted)' }}>{e.description || '—'}</td>
@@ -114,7 +114,10 @@ const Expenses = () => {
                         { id: 'tea', name: 'Tea / Snacks' },
                         { id: 'electricity', name: 'Electricity' },
                         { id: 'transport', name: 'Transport' },
-                        { id: 'misc', name: 'Miscellaneous' }
+                        { id: 'machinery_repair', name: 'Machinery Repair' },
+                        { id: 'machine_maintenance', name: 'Machine Maintenance' },
+                        { id: 'spare_parts', name: 'Spare Parts' },
+                        { id: 'technician_service', name: 'Technician Service' }
                       ]}
                       value={form.type}
                       onChange={(val) => setForm({ ...form, type: val })}
