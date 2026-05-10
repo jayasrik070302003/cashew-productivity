@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { MdAgriculture, MdDelete, MdClose, MdAttachMoney, MdSave } from 'react-icons/md';
 import api from '../utils/api';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CustomSelect from '../components/CustomSelect';
 
 const RawMaterials = () => {
   const [entries, setEntries]     = useState([]);
@@ -15,6 +16,10 @@ const RawMaterials = () => {
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState({ isOpen: false, id: null, loading: false });
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const fetchEntries = async () => {
     setLoading(true);
     try {
@@ -24,13 +29,16 @@ const RawMaterials = () => {
       if (filters.supplier_id) params.supplier_id = filters.supplier_id;
       const res = await api.get('/raw', { params });
       setEntries(res.data.data);
+      setCurrentPage(1); // Reset to page 1 on new search
     } catch { toast.error('Failed to load raw entries'); }
     finally { setLoading(false); }
   };
 
   const fetchSuppliers = async () => {
-    const res = await api.get('/suppliers');
-    setSuppliers(res.data.data);
+    try {
+      const res = await api.get('/suppliers');
+      setSuppliers(res.data.data);
+    } catch { toast.error('Failed to load suppliers'); }
   };
 
   useEffect(() => { fetchEntries(); fetchSuppliers(); }, []);
@@ -61,7 +69,6 @@ const RawMaterials = () => {
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors?.length) {
-        // Show each field-level Sequelize error
         data.errors.forEach(fe => toast.error(`${fe.field}: ${fe.message}`));
       } else {
         toast.error(data?.message || 'Submission failed');
@@ -90,6 +97,10 @@ const RawMaterials = () => {
   const totalCost = entries.reduce((s, e) => s + parseFloat(e.total_cost || 0), 0);
   const totalQty  = entries.reduce((s, e) => s + parseFloat(e.quantity || 0), 0);
 
+  const totalPages = Math.ceil(entries.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEntries = entries.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <div>
       <div className="page-header">
@@ -113,58 +124,84 @@ const RawMaterials = () => {
 
       {/* Filters */}
       <div className="filter-bar">
-        <span style={{ fontWeight: 600, fontSize: '13px', alignSelf: 'center' }}>Filters:</span>
-        <select className="form-control" value={filters.supplier_id} onChange={e => setFilters(p => ({ ...p, supplier_id: e.target.value }))}>
-          <option value="">All Suppliers</option>
-          {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <input type="date" className="form-control" value={filters.start_date} onChange={e => setFilters(p => ({ ...p, start_date: e.target.value }))} />
-        <input type="date" className="form-control" value={filters.end_date} onChange={e => setFilters(p => ({ ...p, end_date: e.target.value }))} />
-        <button className="btn btn-primary" onClick={fetchEntries}>Apply</button>
-        <button className="btn btn-secondary" onClick={() => { setFilters({ start_date: '', end_date: '', supplier_id: '' }); fetchEntries(); }}>Reset</button>
+        <span className="filter-label">Filters:</span>
+        <div style={{ width: '200px' }}>
+          <CustomSelect 
+            options={[{ id: '', name: 'All Suppliers' }, ...suppliers]}
+            value={filters.supplier_id}
+            onChange={(val) => setFilters(p => ({ ...p, supplier_id: val }))}
+            placeholder="All Suppliers"
+          />
+        </div>
+        <div className="date-input-wrapper">
+          <input type="date" className="premium-date-input" value={filters.start_date} onChange={e => setFilters(p => ({ ...p, start_date: e.target.value }))} />
+        </div>
+        <div className="date-input-wrapper">
+          <input type="date" className="premium-date-input" value={filters.end_date} onChange={e => setFilters(p => ({ ...p, end_date: e.target.value }))} />
+        </div>
+        <button className="btn btn-success" onClick={fetchEntries} style={{ height: '42px', padding: '0 24px' }}>Apply Filters</button>
+        <button className="btn btn-outline" onClick={() => { setFilters({ start_date: '', end_date: '', supplier_id: '' }); fetchEntries(); }} style={{ height: '42px' }}>Reset</button>
       </div>
 
       <div className="card">
         <div className="card-header"><h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MdAgriculture /> Raw Entries ({entries.length})</h3></div>
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <div className="loading-center"><div className="spinner" /></div> : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>#</th><th>Date</th><th>Supplier</th><th>Quantity (kg)</th><th>Cost/kg (₹)</th><th>Total Cost (₹)</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {entries.length === 0 ? (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No entries found</td></tr>
-                  ) : entries.map((e, i) => (
-                    <tr key={e.id}>
-                      <td style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
-                      <td>{e.date}</td>
-                      <td style={{ fontWeight: 600 }}>{e.supplier?.name || '—'}</td>
-                      <td>{parseFloat(e.quantity).toLocaleString('en-IN')}</td>
-                      <td>₹{parseFloat(e.cost_per_kg).toLocaleString('en-IN')}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--green-700)' }}>₹{parseFloat(e.total_cost).toLocaleString('en-IN')}</td>
-                      <td>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteRequest(e.id)}><MdDelete /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {entries.length > 0 && (
+            entries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '0 20px 40px' }}>
+                <img src="/empty_batches.png" alt="No raw entries found" style={{ maxWidth: '400px', width: '100%', opacity: 0.9, marginTop: '-20px' }} />
+                <h3 style={{ color: '#64748b', fontWeight: 600, marginTop: '10px' }}>No Raw Materials Found</h3>
+                <p style={{ color: '#94a3b8' }}>Log your raw material purchases to start tracking your inventory.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>#</th><th>Date</th><th>Supplier</th><th>Quantity (kg)</th><th>Cost/kg (₹)</th><th>Total Cost (₹)</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {paginatedEntries.map((e, i) => (
+                      <tr key={e.id}>
+                        <td style={{ color: 'var(--text-muted)' }}>{startIndex + i + 1}</td>
+                        <td>{e.date}</td>
+                        <td style={{ fontWeight: 600 }}>{e.supplier?.name || '—'}</td>
+                        <td>{parseFloat(e.quantity).toLocaleString('en-IN')}</td>
+                        <td>₹{parseFloat(e.cost_per_kg).toLocaleString('en-IN')}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--green-700)' }}>₹{parseFloat(e.total_cost).toLocaleString('en-IN')}</td>
+                        <td>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteRequest(e.id)}><MdDelete /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
                   <tfoot>
                     <tr style={{ background: 'var(--green-50)', fontWeight: 700 }}>
-                      <td colSpan={3} style={{ padding: '10px 14px', color: 'var(--green-800)' }}>TOTAL</td>
+                      <td colSpan={3} style={{ padding: '10px 14px', color: 'var(--green-800)' }}>TOTAL (ALL)</td>
                       <td style={{ padding: '10px 14px' }}>{totalQty.toLocaleString('en-IN')} kg</td>
                       <td></td>
                       <td style={{ padding: '10px 14px', color: 'var(--green-700)' }}>₹{totalCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</td>
                       <td></td>
                     </tr>
                   </tfoot>
-                )}
-              </table>
-            </div>
+                </table>
+              </div>
+            )
           )}
         </div>
+        {!loading && entries.length > 0 && (
+          <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 24px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+              Showing {startIndex + 1}–{Math.min(startIndex + itemsPerPage, entries.length)} of {entries.length} entries
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-outline btn-sm" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}>Previous</button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button key={page} className={`btn btn-sm ${currentPage === page ? 'btn-primary' : 'btn-outline'}`} onClick={() => setCurrentPage(page)}>{page}</button>
+              ))}
+              <button className="btn btn-outline btn-sm" disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)}>Next</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -178,11 +215,13 @@ const RawMaterials = () => {
               <div className="modal-body">
                 <div className="form-group">
                   <label>Supplier *</label>
-                  <select className={`form-control ${errors.supplier_id ? 'error' : ''}`} value={form.supplier_id}
-                    onChange={e => setForm({ ...form, supplier_id: e.target.value })}>
-                    <option value="">Select Supplier</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <CustomSelect 
+                    options={suppliers}
+                    value={form.supplier_id}
+                    onChange={(val) => setForm({ ...form, supplier_id: val })}
+                    placeholder="Select Supplier"
+                    className={errors.supplier_id ? 'error' : ''}
+                  />
                   {errors.supplier_id && <div className="error-msg">{errors.supplier_id}</div>}
                 </div>
                 <div className="form-row">
@@ -206,9 +245,8 @@ const RawMaterials = () => {
                 )}
                 <div className="form-group" style={{ marginTop: form.quantity && form.cost_per_kg ? '14px' : '0' }}>
                   <label>Date *</label>
-                  <input type="date" className={`form-control ${errors.date ? 'error' : ''}`} value={form.date}
-                    max={today}
-                    onChange={e => setForm({ ...form, date: e.target.value })} />
+                  <input type="date" className={`premium-date-input ${errors.date ? 'error' : ''}`} style={{ width: '100%' }} value={form.date}
+                    max={today} onChange={e => setForm({...form, date: e.target.value})} required />
                   {errors.date && <div className="error-msg">{errors.date}</div>}
                 </div>
                 <div className="form-group">

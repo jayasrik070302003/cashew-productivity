@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { MdMoneyOff, MdClose } from 'react-icons/md';
 import api from '../utils/api';
+import CustomSelect from '../components/CustomSelect';
 
 const Expenses = () => {
   const [expenses, setExpenses] = useState([]);
@@ -60,30 +61,38 @@ const Expenses = () => {
         </div>
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <div className="loading-center"><div className="spinner" /></div> : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Amount (₹)</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map(e => (
-                    <tr key={e.id}>
-                      <td>{e.date}</td>
-                      <td>
-                        <span className={`badge badge-brown`} style={{textTransform: 'capitalize'}}>{e.type}</span>
-                      </td>
-                      <td style={{ fontWeight: 700 }}>₹{e.amount}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{e.description || '—'}</td>
+            expenses.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '0 20px 40px' }}>
+                <img src="/empty_batches.png" alt="No expenses found" style={{ maxWidth: '400px', width: '100%', opacity: 0.9, marginTop: '-20px' }} />
+                <h3 style={{ color: '#64748b', fontWeight: 600, marginTop: '10px' }}>No Expenses Logged</h3>
+                <p style={{ color: '#94a3b8' }}>Log your factory expenses to track operational costs.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Amount (₹)</th>
+                      <th>Description</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {expenses.map(e => (
+                      <tr key={e.id}>
+                        <td>{e.date}</td>
+                        <td>
+                          <span className={`badge badge-brown`} style={{textTransform: 'capitalize'}}>{e.type}</span>
+                        </td>
+                        <td style={{ fontWeight: 700 }}>₹{e.amount}</td>
+                        <td style={{ color: 'var(--text-muted)' }}>{e.description || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -100,12 +109,16 @@ const Expenses = () => {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Expense Type *</label>
-                    <select className="form-control" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
-                        <option value="tea">Tea / Snacks</option>
-                        <option value="electricity">Electricity</option>
-                        <option value="transport">Transport</option>
-                        <option value="misc">Miscellaneous</option>
-                    </select>
+                    <CustomSelect 
+                      options={[
+                        { id: 'tea', name: 'Tea / Snacks' },
+                        { id: 'electricity', name: 'Electricity' },
+                        { id: 'transport', name: 'Transport' },
+                        { id: 'misc', name: 'Miscellaneous' }
+                      ]}
+                      value={form.type}
+                      onChange={(val) => setForm({ ...form, type: val })}
+                    />
                   </div>
                   <div className="form-group">
                     <label>Amount (₹) *</label>
@@ -113,8 +126,8 @@ const Expenses = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Date *</label>
-                  <input type="date" className="form-control" value={form.date} onChange={e => setForm({...form, date: e.target.value})} required />
+                  <label>Expense Date *</label>
+                  <input type="date" className="premium-date-input" style={{ width: '100%' }} value={form.date} onChange={e => setForm({...form, date: e.target.value})} required />
                 </div>
                 <div className="form-group">
                   <label>Description</label>

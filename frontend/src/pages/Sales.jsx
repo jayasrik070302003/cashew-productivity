@@ -58,30 +58,38 @@ const Sales = () => {
         </div>
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? <div className="loading-center"><div className="spinner" /></div> : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Buyer</th>
-                    <th>Qty (kg)</th>
-                    <th>Price/kg (₹)</th>
-                    <th>Total Revenue (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map(s => (
-                    <tr key={s.id}>
-                      <td>{s.date}</td>
-                      <td style={{ fontWeight: 600 }}>{s.buyer_name || 'Generic Buyer'}</td>
-                      <td>{s.quantity_sold} kg</td>
-                      <td>₹{s.price_per_kg}</td>
-                      <td style={{ fontWeight: 800, color: 'var(--green-700)' }}>₹{s.total_revenue}</td>
+            sales.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '0 20px 40px' }}>
+                <img src="/empty_batches.png" alt="No sales found" style={{ maxWidth: '400px', width: '100%', opacity: 0.9, marginTop: '-20px' }} />
+                <h3 style={{ color: '#64748b', fontWeight: 600, marginTop: '10px' }}>No Sales Recorded</h3>
+                <p style={{ color: '#94a3b8' }}>Log your first sale to start tracking revenue.</p>
+              </div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Buyer</th>
+                      <th>Qty (kg)</th>
+                      <th>Price/kg (₹)</th>
+                      <th>Total Revenue (₹)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {sales.map(s => (
+                      <tr key={s.id}>
+                        <td>{s.date}</td>
+                        <td style={{ fontWeight: 600 }}>{s.buyer_name || 'Generic Buyer'}</td>
+                        <td>{s.quantity_sold} kg</td>
+                        <td>₹{s.price_per_kg}</td>
+                        <td style={{ fontWeight: 800, color: 'var(--green-700)' }}>₹{s.total_revenue}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -116,7 +124,7 @@ const Sales = () => {
                 )}
                 <div className="form-group">
                   <label>Sale Date *</label>
-                  <input type="date" className="form-control" value={form.date} onChange={e => setForm({...form, date: e.target.value})} required />
+                  <input type="date" className="premium-date-input" style={{ width: '100%' }} value={form.date} onChange={e => setForm({...form, date: e.target.value})} required />
                 </div>
                 <div className="form-group">
                   <label>Notes</label>

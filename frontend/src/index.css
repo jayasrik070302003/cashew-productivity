@@ -521,11 +521,42 @@ tbody tr:last-child td { border-bottom: none; }
   margin-bottom: 16px;
   background: var(--bg-card);
   padding: 14px 18px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
-.filter-label { fontWeight: 600; fontSize: 13px; }
+.filter-label { font-weight: 700; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .filter-bar .form-control { width: auto; min-width: 160px; }
+
+.premium-date-input {
+  appearance: none;
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  height: 42px;
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.premium-date-input:focus {
+  border-color: var(--green-500);
+  box-shadow: 0 0 0 3px rgba(76, 175, 76, 0.1);
+}
+.premium-date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.4) sepia(1) saturate(5) hue-rotate(80deg); /* Make it look green */
+  transition: transform 0.2s;
+}
+.premium-date-input:hover::-webkit-calendar-picker-indicator {
+  transform: scale(1.1);
+}
+
+.date-input-wrapper { position: relative; display: flex; align-items: center; }
 
 .insight-grid {
   display: grid;

@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import * as XLSX from 'xlsx';
 import {
   MdSave, MdFileDownload, MdEvent, MdEmojiEvents, MdCloudDone, MdLocalShipping, MdHistory, MdFilterList, MdAgriculture, MdLayers, MdLock
 } from 'react-icons/md';
@@ -29,10 +31,11 @@ const parseKey = (key) => {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 const WorkerProductivity = () => {
+  const [searchParams] = useSearchParams();
   const [workers, setWorkers] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBatchId, setSelectedBatchId] = useState('');
+  const [selectedBatchId, setSelectedBatchId] = useState(searchParams.get('batch_id') || '');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const [startDate, setStartDate] = useState('');
@@ -43,6 +46,7 @@ const WorkerProductivity = () => {
   const [lastSaved, setLastSaved] = useState(null);
   const [report, setReport] = useState(null);
   const [fetchingReport, setFetchingReport] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const activeBatch = useMemo(() => batches.find(b => b.id == selectedBatchId), [selectedBatchId, batches]);
   const isClosed = activeBatch?.status === 'completed';
@@ -130,6 +134,36 @@ const WorkerProductivity = () => {
     finally { setFetchingReport(false); }
   };
 
+  const exportToExcel = () => {
+    if (!selectedBatchId || workers.length === 0) return;
+    
+    const header = ['S.No', 'Worker Name', ...activeDates, 'Total (KG)', 'Salary (₹)'];
+    const rows = workers.map((w, idx) => {
+      const row = [idx + 1, w.name];
+      activeDates.forEach(date => {
+        row.push(gridData[cellKey(w.id, selectedBatchId, date)] || 0);
+      });
+      row.push(stats.byId[w.id]?.total || 0);
+      row.push(stats.byId[w.id]?.salary || 0);
+      return row;
+    });
+
+    const summaryData = [
+      [],
+      ['Batch ID', activeBatch?.batch_code || 'N/A'],
+      ['Supplier', activeBatch?.supplier?.name || 'N/A'],
+      ['Start Date', startDate],
+      ['End Date', endDate || 'Ongoing'],
+      ['Total Output', stats.totalQty.toFixed(1) + ' kg'],
+      ['Grand Salary', '₹' + workers.reduce((sum, w) => sum + (stats.byId[w.id]?.salary || 0), 0).toLocaleString()]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows, ...summaryData]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Productivity Report");
+    XLSX.writeFile(wb, `Batch_${activeBatch?.batch_code || 'Report'}_Productivity.xlsx`);
+  };
+
   const handleInputChange = (workerId, date, value) => {
     if (isClosed) return; // Prevent edits if closed
     if (!selectedBatchId) { toast.warn('Select a batch first'); return; }
@@ -163,6 +197,33 @@ const WorkerProductivity = () => {
       setIsDirty(false);
       setLastSaved(new Date());
     } catch { toast.error('Failed to sync to database'); }
+  };
+
+  const handleCompleteBatch = async () => {
+    if (!selectedBatchId || isClosed) return;
+    if (stats.totalQty <= 0) {
+      toast.error('Cannot complete batch with zero production. Please record worker productivity first.');
+      return;
+    }
+
+    setShowConfirmModal(true);
+  };
+
+  const confirmCompletion = async () => {
+    try {
+      await api.put(`/batches/${selectedBatchId}`, {
+        status: 'completed',
+        output_quantity: stats.totalQty,
+        end_date: new Date().toISOString().split('T')[0]
+      });
+      toast.success('Batch locked and marked as Finished!');
+      setShowConfirmModal(false);
+      // Refresh batch list to update UI state
+      const bRes = await api.get('/batches');
+      setBatches(bRes.data.data);
+    } catch (err) {
+      toast.error('Failed to complete batch');
+    }
   };
 
   const stats = useMemo(() => {
@@ -202,6 +263,14 @@ const WorkerProductivity = () => {
               <MdSave /> {isDirty ? 'Sync Batch Changes' : 'Batch Data Synced'}
             </button>
           )}
+          {!isClosed && (
+            <button className="btn btn-success" onClick={handleCompleteBatch} disabled={!selectedBatchId}>
+              <MdCloudDone /> Complete & Lock Batch
+            </button>
+          )}
+          <button className="btn btn-outline" onClick={exportToExcel} disabled={!selectedBatchId}>
+            <MdFileDownload /> Export Excel
+          </button>
         </div>
       </div>
 
@@ -312,12 +381,8 @@ const WorkerProductivity = () => {
 
       {/* Grid */}
       {!selectedBatchId ? (
-        <div className="empty-state-container">
-           <div className="empty-icon-wrapper">
-             <MdLayers size={42} />
-           </div>
-           <h3>No Batch Selected</h3>
-           <p>Please select a production batch from the dropdown above to view its timeline, track worker productivity, and manage daily data.</p>
+        <div style={{ textAlign: 'center', padding: '20px 20px 60px', background: '#f8fafc', borderRadius: '16px', border: '2px dashed #e2e8f0' }}>
+          <img src="/empty_batches.png" alt="Select a batch" style={{ maxWidth: '400px', width: '100%', opacity: 0.9, marginTop: '-20px' }} />
         </div>
       ) : (
         <div className={`productivity-table-container ${isClosed ? 'read-only-grid' : ''}`}>
@@ -373,41 +438,79 @@ const WorkerProductivity = () => {
         </div>
       )}
 
-      {/* Report Modal */}
-      {report && (
-        <div className="modal-overlay" onClick={() => setReport(null)}>
-          <div className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Batch Report: {activeBatch?.batch_code}</h3>
-              <button className="modal-close" onClick={() => setReport(null)}>&times;</button>
-            </div>
-            <div className="modal-body">
-               <div style={{ padding: 16, background: '#f0f7f0', borderRadius: 8, marginBottom: 16 }}>
-                  <p><strong>Supplier:</strong> {activeBatch?.supplier?.name}</p>
-                  <p><strong>Total Quantity:</strong> {report.total_quantity} kg</p>
-                  <p><strong>Status:</strong> {activeBatch?.status === 'completed' ? 'Closed' : 'Active'}</p>
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal confirm-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-body text-center" style={{ padding: '0' }}>
+               <div style={{ background: 'var(--green-900)', padding: '40px 20px', color: '#fff', position: 'relative' }}>
+                  <div className="confirm-icon-wrapper" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', marginBottom: '16px' }}>
+                    <MdLock size={32} />
+                  </div>
+                  <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>Complete & Lock Batch?</h2>
+                  <p style={{ fontSize: '13px', opacity: 0.8, maxWidth: '280px', margin: '0 auto' }}>You are about to finalize this production lot. This action is permanent and will lock all records.</p>
+                  
+                  {/* Decorative corner icon */}
+                  <MdAgriculture style={{ position: 'absolute', right: '-10px', bottom: '-10px', fontSize: '100px', opacity: 0.05, transform: 'rotate(-15deg)' }} />
                </div>
-               <table className="w-full">
-                  <thead><tr style={{ borderBottom: '2px solid #eee' }}><th className="text-left p-2">Worker</th><th className="text-right p-2">Total</th></tr></thead>
-                  <tbody>
-                    {report.worker_breakdown.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #eee' }}><td className="p-2">{r.worker_name}</td><td className="text-right p-2 font-bold">{r.total} kg</td></tr>
-                    ))}
-                  </tbody>
-               </table>
+
+               <div style={{ padding: '30px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                    <div className="confirm-stat-card" style={{ textAlign: 'center', background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                      <div className="stat-label" style={{ color: '#166534' }}>TOTAL OUTPUT</div>
+                      <div className="stat-value" style={{ color: '#15803d', fontSize: '20px' }}>{stats.totalQty.toFixed(1)} <span style={{fontSize: '12px'}}>kg</span></div>
+                    </div>
+                    <div className="confirm-stat-card" style={{ textAlign: 'center', background: '#fef2f2', borderColor: '#fecaca' }}>
+                      <div className="stat-label" style={{ color: '#991b1b' }}>TOTAL SALARY</div>
+                      <div className="stat-value" style={{ color: '#b91c1c', fontSize: '20px' }}>₹{workers.reduce((sum, w) => sum + (stats.byId[w.id]?.salary || 0), 0).toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  <div className="alert alert-warning" style={{ fontSize: '12px', textAlign: 'left', borderRadius: '12px', border: '1px solid #fde68a', background: '#fffbeb' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                       <MdWarning size={18} style={{ flexShrink: 0 }} />
+                       <span>Daily worker logs for <strong>{activeBatch?.batch_code}</strong> will be marked as read-only and efficiency will be finalized.</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '30px' }}>
+                    <button className="btn btn-secondary w-full" onClick={() => setShowConfirmModal(false)} style={{ height: '48px', borderRadius: '12px' }}>Cancel</button>
+                    <button className="btn btn-success w-full" onClick={confirmCompletion} style={{ height: '48px', borderRadius: '12px', background: 'var(--green-800)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>Confirm & Finish</button>
+                  </div>
+               </div>
             </div>
           </div>
         </div>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
+        .confirm-modal { max-width: 420px; border-radius: 24px; overflow: hidden; }
+        .confirm-icon-wrapper { 
+          width: 80px; height: 80px; background: var(--green-50); color: var(--green-600);
+          border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          margin: 0 auto 24px;
+        }
+        .confirm-stat-card {
+          background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px;
+          text-align: center;
+        }
+        .confirm-stat-card .stat-label { font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .confirm-stat-card .stat-value { font-size: 32px; font-weight: 900; color: var(--green-700); }
+        .confirm-stat-card .stat-value span { font-size: 16px; font-weight: 600; color: #94a3b8; }
+
         .read-only-grid input { background: #fdfdfd; color: #666; cursor: not-allowed; }
         .read-only-grid .input-cell input:focus { box-shadow: none !important; background: transparent; }
 
         .filter-label { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .glass-card { background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.04) !important; }
-        .premium-leaderboard-item { display: flex; align-items: center; gap: 16px; padding: 10px; margin-bottom: 8px; background: #fff; border-radius: 8px; border: 1px solid #f0f0f0; }
-        .leader-rank { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; font-size: 12px; }
+        .glass-card { background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.04) !important; border: 1px solid #f1f5f9; }
+        .premium-leaderboard-item { 
+          display: flex; align-items: center; gap: 16px; padding: 12px 16px; margin-bottom: 12px; 
+          background: linear-gradient(90deg, #ffffff 0%, #f8fafc 100%); 
+          border-radius: 12px; border: 1px solid #f1f5f9;
+          transition: transform 0.2s;
+        }
+        .premium-leaderboard-item:hover { transform: translateX(4px); border-color: var(--green-200); }
+        .leader-rank { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; font-size: 14px; flex-shrink: 0; }
         .rank-1 { background: #FFD700; } .rank-2 { background: #C0C0C0; } .rank-3 { background: #CD7F32; }
         .leader-info { flex: 1; display: flex; flex-direction: column; }
         .leader-name { font-weight: 700; color: var(--text-main); font-size: 14px; }

@@ -20,7 +20,11 @@ exports.summary = async (req, res, next) => {
 
     // ─── Aggregate queries (all run in parallel) ───────
     const [rawEntries, workerLogs, expenses, sales, batches, workers] = await Promise.all([
-      RawEntry.findAll({ where: dateFilter('date'), attributes: ['quantity', 'total_cost'] }),
+      RawEntry.findAll({ 
+        where: dateFilter('date'), 
+        attributes: ['quantity', 'total_cost', 'supplier_id'],
+        include: [{ model: require('../models/supplier'), as: 'supplier', attributes: ['name'] }]
+      }),
       WorkerLog.findAll({
         where: dateFilter('log_date'),
         attributes: ['salary', 'quantity_processed', 'worker_id'],
@@ -60,6 +64,16 @@ exports.summary = async (req, res, next) => {
     const bestWorkerEntry = Object.entries(workerTotals).sort((a, b) => b[1] - a[1])[0];
     const best_worker = bestWorkerEntry ? { name: bestWorkerEntry[0], quantity: bestWorkerEntry[1] } : null;
 
+    // ─── Best Supplier ────────────────────────────────
+    const supplierTotals = {};
+    rawEntries.forEach((r) => {
+      const name = r.supplier?.name || 'Unknown';
+      supplierTotals[name] = (supplierTotals[name] || 0) + parseFloat(r.quantity);
+    });
+    const bestSupEntry = Object.entries(supplierTotals).sort((a, b) => b[1] - a[1])[0];
+    const best_supplier = bestSupEntry ? { name: bestSupEntry[0], quantity: bestSupEntry[1] } : null;
+    const supplier_contribution = Object.entries(supplierTotals).map(([name, quantity]) => ({ name, quantity }));
+
     // ─── Highest expense category ─────────────────────
     const expCat = {};
     expenses.forEach((e) => { expCat[e.type] = (expCat[e.type] || 0) + parseFloat(e.amount); });
@@ -68,12 +82,6 @@ exports.summary = async (req, res, next) => {
 
     // ─── Expense breakdown (for pie chart) ────────────
     const expense_breakdown = Object.entries(expCat).map(([type, amount]) => ({ type, amount }));
-
-    // ─── Monthly profit trend (last 6 months) for line chart ──
-    const monthlyTrend = {};
-    sales.forEach((s) => {
-      // Use createdAt date from sale
-    });
 
     return res.json({
       success: true,
@@ -89,10 +97,13 @@ exports.summary = async (req, res, next) => {
         waste:               parseFloat(waste.toFixed(2)),
         alert,
         best_worker,
+        best_supplier,
+        supplier_contribution,
         top_expense_category,
         expense_breakdown,
         total_batches:       batches.length,
         completed_batches:   batches.filter(b => b.status === 'completed').length,
+        avg_efficiency:      batches.length > 0 ? (batches.reduce((s, b) => s + (b.efficiency || 0), 0) / batches.length).toFixed(1) : 0
       },
     });
   } catch (err) { next(err); }
@@ -101,30 +112,40 @@ exports.summary = async (req, res, next) => {
 /** GET /api/dashboard/monthly-trend — revenue vs cost per month */
 exports.monthlyTrend = async (req, res, next) => {
   try {
-    const [sales, rawEntries, expenses, workerLogs] = await Promise.all([
+    const { year } = req.query;
+
+    const [sales, rawEntries, expenses, workerLogs, batches] = await Promise.all([
       Sale.findAll({ attributes: ['date', 'total_revenue'], order: [['date', 'ASC']] }),
-      RawEntry.findAll({ attributes: ['date', 'total_cost'], order: [['date', 'ASC']] }),
+      RawEntry.findAll({ attributes: ['date', 'total_cost', 'quantity'], order: [['date', 'ASC']] }),
       Expense.findAll({ attributes: ['date', 'amount'], order: [['date', 'ASC']] }),
       WorkerLog.findAll({ attributes: ['log_date', 'salary'], order: [['log_date', 'ASC']] }),
+      Batch.findAll({ attributes: ['start_date', 'output_quantity'], order: [['start_date', 'ASC']] }),
     ]);
 
     const months = {};
     const addToMonth = (dateStr, key, val) => {
       const m = dateStr ? dateStr.slice(0, 7) : null;
       if (!m) return;
-      if (!months[m]) months[m] = { month: m, revenue: 0, cost: 0, profit: 0 };
+      if (year && !m.startsWith(year)) return; // Filter by year if provided
+      if (!months[m]) months[m] = { month: m, revenue: 0, cost: 0, input: 0, output: 0, profit: 0 };
       months[m][key] += parseFloat(val || 0);
     };
 
     sales.forEach(s => addToMonth(s.date, 'revenue', s.total_revenue));
     rawEntries.forEach(r => addToMonth(r.date, 'cost', r.total_cost));
+    rawEntries.forEach(r => addToMonth(r.date, 'input', r.quantity));
     expenses.forEach(e => addToMonth(e.date, 'cost', e.amount));
     workerLogs.forEach(l => addToMonth(l.log_date, 'cost', l.salary));
+    batches.forEach(b => addToMonth(b.start_date, 'output', b.output_quantity));
 
     const trend = Object.values(months)
       .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-12) // last 12 months
-      .map(m => ({ ...m, profit: parseFloat((m.revenue - m.cost).toFixed(2)) }));
+      .map(m => ({ 
+        ...m, 
+        profit: parseFloat((m.revenue - m.cost).toFixed(2)),
+        input: parseFloat(m.input.toFixed(2)),
+        output: parseFloat(m.output.toFixed(2))
+      }));
 
     res.json({ success: true, data: trend });
   } catch (err) { next(err); }

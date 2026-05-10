@@ -108,14 +108,18 @@ const Dashboard = () => {
       )}
 
       {/* ── Date filter ── */}
-      <div className="filter-bar" style={{ marginBottom: '20px' }}>
-        <div className="filter-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MdDateRange /> Filter Period:</div>
-        <input type="date" className="form-control" value={dateRange.start}
-          onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} />
-        <input type="date" className="form-control" value={dateRange.end}
-          onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
-        <button className="btn btn-primary" onClick={fetchData}>Apply</button>
-        <button className="btn btn-secondary" onClick={() => { setDateRange({ start: '', end: '' }); fetchData(); }}>Reset</button>
+      <div className="filter-bar">
+        <span className="filter-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><MdDateRange size={16} /> Filter Period:</span>
+        <div className="date-input-wrapper">
+          <input type="date" className="premium-date-input" value={dateRange.start}
+            onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} />
+        </div>
+        <div className="date-input-wrapper">
+          <input type="date" className="premium-date-input" value={dateRange.end}
+            onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} />
+        </div>
+        <button className="btn btn-primary" onClick={fetchData} style={{ height: '42px', padding: '0 24px' }}>Apply Filters</button>
+        <button className="btn btn-outline" onClick={() => { setDateRange({ start: '', end: '' }); fetchData(); }} style={{ height: '42px' }}>Reset</button>
       </div>
 
       {/* ── KPI Cards ── */}

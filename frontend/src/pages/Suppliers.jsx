@@ -88,6 +88,12 @@ const Suppliers = () => {
         <div className="card-body" style={{ padding: 0 }}>
           {loading ? (
             <div className="loading-center"><div className="spinner" /></div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '0 20px 40px' }}>
+              <img src="/empty_batches.png" alt="No suppliers found" style={{ maxWidth: '400px', width: '100%', opacity: 0.9, marginTop: '-20px' }} />
+              <h3 style={{ color: '#64748b', fontWeight: 600, marginTop: '10px' }}>No Suppliers Found</h3>
+              <p style={{ color: '#94a3b8' }}>Register your raw material providers to start creating batches.</p>
+            </div>
           ) : (
             <div className="table-wrap">
               <table>
@@ -95,9 +101,7 @@ const Suppliers = () => {
                   <tr><th>#</th><th>Name</th><th>Contact</th><th>Address</th><th>Added</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No suppliers found</td></tr>
-                  ) : filtered.map((s, i) => (
+                  {filtered.map((s, i) => (
                     <tr key={s.id}>
                       <td style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
                       <td style={{ fontWeight: 600 }}>{s.name}</td>
