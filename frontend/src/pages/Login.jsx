@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
-import { GiPeanut } from 'react-icons/gi';
+import logo from '../assets/logo.png';
 import { MdWarning, MdPerson, MdLock, MdVisibility, MdVisibilityOff, MdArrowForward } from 'react-icons/md';
 
 /* ── Animated canvas particles ──────────────────────── */
@@ -166,10 +166,10 @@ const Login = () => {
         {/* Logo section */}
         <div className="login-brand">
           <div className="login-icon-wrap">
-            <GiPeanut className="login-cashew-icon" />
+            <img src={logo} alt="cashewLink" className="login-logo-img" />
             <div className="login-icon-pulse" />
           </div>
-          <h1 className="login-title">Cashew Management</h1>
+          <h1 className="login-title">cashewLink</h1>
           <p className="login-subtitle">Industrial Processing System</p>
         </div>
 

@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GiPeanut } from 'react-icons/gi';
 import { MdMenu } from 'react-icons/md';
+import logo from '../assets/logo.png';
 
 const pageTitles = {
   '/dashboard':   'Dashboard Overview',
@@ -23,7 +23,10 @@ const Topbar = ({ onMenuClick }) => {
   return (
     <header className="topbar">
       <button className="menu-toggle" onClick={onMenuClick}><MdMenu /></button>
-      <div className="topbar-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><GiPeanut /> {title}</div>
+      <div className="topbar-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <img src={logo} alt="logo" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+        {title}
+      </div>
       <div className="topbar-user">
         <span className="date-str" style={{ fontSize: '12px' }}>
           {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}

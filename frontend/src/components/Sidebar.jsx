@@ -5,7 +5,7 @@ import {
   MdEngineering, MdListAlt, MdMoneyOff, MdAttachMoney, MdBarChart,
   MdLogout
 } from 'react-icons/md';
-import { GiPeanut } from 'react-icons/gi';
+import logo from '../assets/logo.png';
 
 const navItems = [
   { path: '/dashboard',    icon: <MdDashboard />, label: 'Dashboard',      section: 'OVERVIEW' },
@@ -30,9 +30,9 @@ const Sidebar = ({ isOpen, onClose }) => {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-logo">
-        <div className="logo-icon"><GiPeanut /></div>
+        <img src={logo} alt="Cashew Processing Logo" className="logo-img" />
         <div className="logo-text">
-          <h2>Cashew Processing<br/>Management System</h2>
+          <h2>cashewLink</h2>
           <p>Industrial Dashboard</p>
         </div>
       </div>
